@@ -3,9 +3,12 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +24,7 @@ type coreTask struct {
 type coreScan struct {
 	Tasks  []coreTask `json:"tasks"`
 	Issues []string   `json:"issues"`
+	Fields []string   `json:"fields"`
 }
 
 // Runs only decoder/schema/path helpers, with user config, plugins and shada disabled.
@@ -43,7 +47,8 @@ func scanWithCore(t *testing.T, root string) coreScan {
   local md = require("auto-core.todo.md")
   local schema = require("auto-core.todo.schema")
   local paths = require("auto-core.todo.paths")
-  local out = {tasks = {}, issues = {}}
+  local out = {tasks = {}, issues = {}, fields = vim.deepcopy(schema.FRONTMATTER_ORDER)}
+  table.insert(out.fields, "description")
   paths.walk(vim.env.AUTODOC_TODOS_SCAN_ROOT, function(path)
     local f = assert(io.open(path, "rb"))
     local src = f:read("*a"); f:close()
@@ -112,6 +117,48 @@ func TestGoCreatedMarkdownDecodesInCanonicalLua(t *testing.T) {
 		if strings.Contains(string(data), "\ndescription:") || strings.Count(string(data), "<!-- ─── auto-core.todo schema v1") != 1 {
 			t.Fatal("description serialized in frontmatter or duplicate marker")
 		}
+	}
+}
+
+func TestCanonicalTopLevelFieldCatalog(t *testing.T) {
+	s, err := Scaffold(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	core := scanWithCore(t, s.Root)
+	fields := make([]string, 0, len(topLevelFields))
+	for key := range topLevelFields {
+		fields = append(fields, key)
+	}
+	sort.Strings(fields)
+	sort.Strings(core.Fields)
+	if !reflect.DeepEqual(fields, core.Fields) {
+		t.Fatalf("top-level catalog drift: Go=%v; Lua=%v", fields, core.Fields)
+	}
+}
+
+func TestUnknownTopLevelFieldsCanonicalLuaParity(t *testing.T) {
+	s, err := Scaffold(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, tc := range unknownFields {
+		path := filepath.Join(s.Root, "open", fmt.Sprintf("bad-%d.md", i))
+		data := []byte(strings.Replace(markdownFixture("open", tc.key+": "+tc.value+"\n"), "id: sample", fmt.Sprintf("id: bad-%d", i), 1))
+		if err := os.WriteFile(path, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	core := scanWithCore(t, s.Root)
+	if len(core.Tasks) != 0 || len(core.Issues) != len(unknownFields) {
+		t.Fatalf("canonical Lua accepted unknown fields: %+v", core)
+	}
+	goScan, err := s.Scan()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(goScan.Tasks) != 0 || len(goScan.Issues) != len(core.Issues) {
+		t.Fatalf("unknown-field parity: Go=%+v; Lua=%+v", goScan, core)
 	}
 }
 

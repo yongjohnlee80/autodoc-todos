@@ -113,7 +113,7 @@ func TestStatusTransitions(t *testing.T) {
 }
 
 func TestAutomatedRequiresUnassigned(t *testing.T) {
-	for _, extra := range []string{"assigned_to: agent:example\n", "assigned: example\n", "assignee: example\n", "origin: original\n"} {
+	for _, extra := range []string{"assignee: example\n", "origin: original\n"} {
 		t.Run(strings.ReplaceAll(extra, "\n", "_"), func(t *testing.T) {
 			s, task := seeded(t, "open", extra)
 			if err := s.SetStatus(task, "automated", testNow); err == nil {
@@ -127,13 +127,13 @@ func TestAutomatedRequiresUnassigned(t *testing.T) {
 }
 
 func TestRoundTripPreservesMetadata(t *testing.T) {
-	extra := "# user metadata\ndescription: |\n  First line\n  Second line\ntags: [one, two]\ncustom:\n  nested: [1, true, value]\n"
+	extra := "# user metadata\ndescription: |\n  First line\n  Second line\ntags: [one, two]\nadr: [design.md]\nreview: [review.md]\nblocked: [other-task]\npriority: high\ndue: 2026-12-01\nassignee: example\norigin: template\nexit_code: 0\nerrors:\n  - field: adr\n    code: not-found\n    message: Missing document\n    detected: 2026-04-01T00:00:00Z\n"
 	s, task := seeded(t, "open", extra)
 	if err := s.SetStatus(task, "deferred", testNow); err != nil {
 		t.Fatal(err)
 	}
 	after := onlyTask(t, s)
-	for _, key := range []string{"description", "tags", "custom"} {
+	for _, key := range []string{"description", "tags", "adr", "review", "blocked", "priority", "due", "assignee", "origin", "exit_code", "errors"} {
 		var beforeValue, afterValue any
 		if err := field(&task.Document, key).Decode(&beforeValue); err != nil {
 			t.Fatal(err)

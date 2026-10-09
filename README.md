@@ -81,8 +81,8 @@ removes one Unicode character.
 **Host navigation limitation:** AutoDoc's plugin protocol has no editor-open /
 navigation verb. `CR` therefore displays an honest in-plugin Markdown preview,
 not a host editor jump. Assignment (`A`) and Vars (`e`) require the owning
-Neovim runtime and are intentionally not emulated here. Existing assignment,
-variable, automation, description, and unknown metadata fields are preserved.
+Neovim runtime and are intentionally not emulated here. Allowed assignment and
+automation metadata, Markdown body content, and comments are preserved.
 
 ## Portable format and status compatibility
 
@@ -129,9 +129,10 @@ Status transitions preserve `id`, `created`, and `updated`; only
   when arriving from `completed`. Archive placement and the tree's year/month
   grouping derive from `archived_at`.
 - Selecting the existing status is a no-op, preserving bytes and timestamps.
-- Entering `automated` requires an unassigned task without `origin`. Populated
-  `assigned_to`, `assigned`, or `assignee` fields block it; ambiguous assignment
-  aliases also block it. The current core schema permits empty inert templates,
+- Entering `automated` requires an unassigned task without `origin`. A populated
+  `assignee` blocks it; ambiguous assignment aliases also block writes.
+  `assigned_to` and `assigned` are unknown fields, rejected in every status.
+  The current core schema permits empty inert templates,
   so no `condition` or `execute` is synthesized. Nothing is evaluated or executed.
 - `condition` / `execute` must be string lists when supplied and are valid only
   on automated tasks, as is `last_fired_at`. Leaving a populated template is
@@ -150,11 +151,15 @@ are blocked until those issues are repaired externally.
   Markdown body retain their byte contents, including CRLF. Inline comments on
   removed lifecycle fields survive as comment lines. Anchored or multiline
   managed scalars are refused rather than corrupting metadata references.
-- Known field shapes and lifecycle rules are checked. Unknown frontmatter
-  fields are deliberately preserved, not deleted: core's closed schema rejects
-  such extensions, so preserving them does **not** claim schema acceptance.
-  Similarly, Go accepts broader YAML syntax than core's strict-subset parser;
-  preserved arbitrary YAML is not guaranteed consumable by core. RFC3339 parsing
+- Known field shapes and lifecycle rules are checked. The top-level field catalog
+  matches core's closed schema v1: unknown frontmatter keys (even null-valued ones)
+  are rejected by Parse and reported as scan issues. Add, status, and remove are
+  blocked store-wide until those issues are repaired externally; invalid files
+  are never deleted or rewritten automatically. Allowed fields include identity,
+  content, lifecycle, references, automation metadata, and `errors`; `description`
+  is allowed but decoded from the Markdown body as above.
+  Go still accepts broader YAML syntax than core's strict-subset parser;
+  accepted YAML is not guaranteed consumable by core. RFC3339 parsing
   is stricter than core's datetime-prefix check. New tasks and canonical fixtures
   are verified against the actual Lua decoder/schema, not a mock.
 - Temporary-file writes are synced and atomically published. New destinations
@@ -184,14 +189,16 @@ imports nor modifies that runtime.
 ## Coverage
 
 Tests cover all 36 status pairs, timestamp cleanup/preservation, automated
-eligibility, metadata round trips, malformed files, duplicate IDs, stale
+eligibility, allowed metadata round trips, unknown-field rejection and byte-exact
+mutation refusal, malformed files, duplicate IDs, stale
 writes, destination collisions, symlink guards, scaffolding, removal safety,
 browser highlighting, location independence, recents, tree expansion, forms,
 confirmation, previews, small sizes, theme changes, help diagnostics, and the
 real SDK protocol-2 lifecycle over pipes.
 
 When Neovim and the sibling core checkout are available, tests validate Go-created
-tasks in all six statuses using actual `md.decode` and `schema.validate`. Set
+tasks in all six statuses, unknown-field rejection, and field catalog parity
+using actual `md.decode` and `schema.validate`. Set
 `AUTODOC_TODOS_CORE_RUNTIME` to override the core checkout directory. The optional
 real-store parity test is strictly read-only (no lock, scaffold, move, or write):
 

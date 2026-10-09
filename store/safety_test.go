@@ -8,26 +8,35 @@ import (
 )
 
 func TestStatusRefusesMetadataAliasesToManagedFields(t *testing.T) {
-	s, task := seeded(t, "open", "custom_status: &state open\ncustom_alias: *state\n")
+	s, task := seeded(t, "open", "")
 	data := bytes.Replace(task.Original, []byte("status: open"), []byte("status: &status open"), 1)
-	data = bytes.Replace(data, []byte("custom_status: &state open"), []byte("custom_status: *status"), 1)
-	data = bytes.Replace(data, []byte("custom_alias: *state\n"), nil, 1)
+	data = bytes.Replace(data, []byte("title: Sample"), []byte("title: Sample\ndescription: *status"), 1)
 	if err := os.WriteFile(task.Path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	task = onlyTask(t, s)
 	if err := s.SetStatus(task, "deferred", testNow); err == nil {
-		t.Fatal("removing an anchored field can corrupt unknown metadata")
+		t.Fatal("removing an anchored field can corrupt metadata")
 	}
-	if !bytes.Equal(task.Original, onlyTask(t, s).Original) {
+	after, err := os.ReadFile(task.Path)
+	if err != nil || !bytes.Equal(data, after) {
 		t.Fatal("unsafe alias document rewritten")
 	}
 }
 
 func TestAutomatedRefusesAliasAssignment(t *testing.T) {
-	s, task := seeded(t, "open", "owner: &owner example\nassigned_to: *owner\n")
+	s, task := seeded(t, "open", "")
+	data := bytes.Replace(task.Original, []byte("title: Sample"), []byte("title: &owner example\nassignee: *owner"), 1)
+	if err := os.WriteFile(task.Path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	task.Original = data
 	if err := s.SetStatus(task, "automated", testNow); err == nil {
 		t.Fatal("alias bypassed assignment guard")
+	}
+	after, err := os.ReadFile(task.Path)
+	if err != nil || !bytes.Equal(data, after) {
+		t.Fatal("unsafe assignment document rewritten")
 	}
 }
 
