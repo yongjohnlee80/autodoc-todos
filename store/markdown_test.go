@@ -14,7 +14,7 @@ func TestMarkdownBodyAndFrontmatterPreservation(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := "\n<!-- user comment: keep exactly -->\n# Sample\n\nBody **markdown**\r\n\n```yaml\nstatus: untouched\n```\n\n"
-	metadata := "# precise comment\ncustom: {nested: [1, true, 'value']} # inline\ndescription: ignored frontmatter\n"
+	metadata := "# precise comment\ntags: [one, 'value'] # inline\nreview: ['doc.md']\ndescription: ignored frontmatter\n"
 	data := []byte("---\n" + fixture("open") + metadata + "---\n" + body)
 	path := filepath.Join(s.Root, "open", "sample.md")
 	if err := os.WriteFile(path, data, 0o600); err != nil {
@@ -29,7 +29,7 @@ func TestMarkdownBodyAndFrontmatterPreservation(t *testing.T) {
 	}
 	after := onlyTask(t, s)
 	if !bytes.HasSuffix(after.Original, []byte(body)) || !bytes.Contains(after.Original, []byte(metadata)) {
-		t.Fatal("body or arbitrary metadata/comment bytes changed")
+		t.Fatal("body or allowed metadata/comment bytes changed")
 	}
 }
 
@@ -60,7 +60,7 @@ func TestCanonicalWalkIgnoresLegacyYAMLAndUnrelatedMarkdown(t *testing.T) {
 }
 
 func TestCRLFAndLifecycleCommentsPreserved(t *testing.T) {
-	s, task := seeded(t, "completed", "custom: &meta {value: 'verbatim'} # keep inline\ncopy: *meta\n")
+	s, task := seeded(t, "completed", "tags: ['verbatim'] # keep inline\nreview: ['doc.md']\n")
 	data := strings.ReplaceAll(string(task.Original), "\n", "\r\n")
 	data = strings.Replace(data, "status: completed", "status: 'completed'  # status note", 1)
 	data = strings.Replace(data, "completed_at: 2026-04-01T00:00:00Z", "completed_at: '2026-04-01T00:00:00Z'  # completion note", 1)
@@ -72,7 +72,7 @@ func TestCRLFAndLifecycleCommentsPreserved(t *testing.T) {
 		t.Fatal(err)
 	}
 	after := onlyTask(t, s)
-	for _, exact := range []string{"status: open  # status note\r\n", "# completion note\r\n", "custom: &meta {value: 'verbatim'} # keep inline\r\ncopy: *meta\r\n", task.Body} {
+	for _, exact := range []string{"status: open  # status note\r\n", "# completion note\r\n", "tags: ['verbatim'] # keep inline\r\nreview: ['doc.md']\r\n", task.Body} {
 		if !strings.Contains(string(after.Original), exact) {
 			t.Fatalf("lost exact bytes %q", exact)
 		}

@@ -7,12 +7,29 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Schema v1 is closed: mirror auto-core.todo.schema's FIELDS catalog.
+var topLevelFields = map[string]bool{
+	"id": true, "version": true, "created": true, "updated": true,
+	"status_changed": true, "status": true, "completed_at": true, "archived_at": true,
+	"title": true, "description": true, "due": true, "priority": true,
+	"assignee": true, "tags": true, "adr": true, "review": true, "blocked": true,
+	"condition": true, "execute": true, "origin": true, "last_fired_at": true,
+	"exit_code": true, "errors": true,
+}
+
 func present(t *Task, key string) bool {
 	n := field(&t.Document, key)
 	return n != nil && n.Tag != "!!null"
 }
 
 func validateTask(t *Task) error {
+	m := t.Document.Content[0]
+	for i := 0; i < len(m.Content); i += 2 {
+		key := m.Content[i]
+		if key.Kind != yaml.ScalarNode || key.Tag != "!!str" || !topLevelFields[key.Value] {
+			return fmt.Errorf("unknown top-level key %q (schema v1 is closed)", key.Value)
+		}
+	}
 	for _, key := range []string{"id", "status", "title", "assignee", "origin"} {
 		if n := field(&t.Document, key); n != nil && n.Tag != "!!null" && (n.Kind != yaml.ScalarNode || n.Tag != "!!str") {
 			return fmt.Errorf("%s must be a string", key)

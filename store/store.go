@@ -356,7 +356,7 @@ func (s *Store) withLock(fn func(Snapshot) error) error {
 		return err
 	}
 	if len(snap.Issues) != 0 {
-		return errors.New("store has malformed, duplicate or unsafe files; repair externally before writing")
+		return fmt.Errorf("store has malformed, duplicate or unsafe files; repair externally before writing: %s", snap.Issues[0])
 	}
 	return fn(snap)
 }
