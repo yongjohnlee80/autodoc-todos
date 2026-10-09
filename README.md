@@ -14,16 +14,22 @@ go test -race ./...
 go vet ./...
 ```
 
-For this uncommitted local scaffold, copy the built directory into AutoDoc's
-plugins folder as a real subdirectory, normally `~/.config/autodoc/plugins/todos`
-(or the configured plugins folder), then reopen the Plugins menu. Symlinked
-plugin subdirectories are not discovered. No git initialization is required.
-Once published in a git repository, Plugins → Add from a git URL can clone and
-build it. `plugin.toml` declares the build command, dialog placements, optional
-document feed, and Load/New/Refresh commands. The executable is
-`bin/autodoc-todos`; stdout is reserved for the SDK's msgpack-RPC transport.
-Minimum useful dialog size is 48 × 12. Requires AutoDoc v0.1.21+ and Go 1.25.3+.
-`-buildvcs=false` supports this intentionally uninitialized local source directory.
+### Install in AutoDoc
+
+Plugins › **Add from a git URL…** →
+`https://github.com/yongjohnlee80/autodoc-todos`. AutoDoc clones the repository
+and runs the `[install] build` command from `plugin.toml`, which writes
+`bin/autodoc-todos`. Requires AutoDoc v0.1.21+ and Go 1.25.3+.
+
+For local development, build in place and copy the directory into AutoDoc's
+plugins folder as a real subdirectory, normally `~/.config/autodoc/plugins/todos`,
+then reopen the Plugins menu. Symlinked plugin subdirectories are not
+discovered.
+
+`plugin.toml` declares the build command, dialog placements, the optional
+document feed, and the Load/New/Refresh commands. stdout is reserved for the
+SDK's msgpack-RPC transport. The minimum useful dialog size is 48 × 12.
+`-buildvcs=false` lets the build run in a directory without git metadata.
 
 ## Locations
 
