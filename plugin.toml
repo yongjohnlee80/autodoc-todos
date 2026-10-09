@@ -1,0 +1,30 @@
+name     = "todos"
+title    = "Todos"
+kind     = "dialog"
+protocol = 2
+command  = ["./bin/autodoc-todos"]
+
+[dialog]
+width      = 100
+height     = "85%"
+placements = ["center", "right", "left"]
+esc        = "hide"
+
+[feed]
+document = true
+
+[[commands]]
+id    = "locations"
+title = "Load a todo location"
+key   = "t"
+
+[[commands]]
+id    = "new"
+title = "New todo location"
+
+[[commands]]
+id    = "refresh"
+title = "Refresh todos"
+
+[install]
+build = ["go", "build", "-buildvcs=false", "-trimpath", "-o", "bin/autodoc-todos", "."]
